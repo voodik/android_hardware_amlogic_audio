@@ -26,7 +26,6 @@ Description:
 #include "../libms12/include/aml_audio_ms12.h"
 #include "dolby_lib_api.h"
 #include "alsa_device_parser.h"
-#include "audio_a2dp_hw.h"
 
 //#define DEBUG_TIME
 static int on_notify_cbk(void *data);
@@ -285,12 +284,8 @@ exit:
     out->lasttimestamp.tv_nsec = out->timestamp.tv_nsec;
     if (written >= 0) {
         //TODO
-        if (out->out_device & AUDIO_DEVICE_OUT_ALL_A2DP)
-            latency_frames = mixer_get_inport_latency_frames(audio_mixer, out->port_index)
-                    + a2dp_out_get_latency(stream);
-        else
-            latency_frames = mixer_get_inport_latency_frames(audio_mixer, out->port_index)
-                    + mixer_get_outport_latency_frames(audio_mixer);
+        latency_frames = mixer_get_inport_latency_frames(audio_mixer, out->port_index);
+                + mixer_get_outport_latency_frames(audio_mixer);
         out->frame_write_sum += written / frame_size;
 
         if (out->frame_write_sum > latency_frames)
@@ -631,10 +626,7 @@ static int out_get_presentation_position_port(
         return -EINVAL;
     }
 
-    if (out->out_device & AUDIO_DEVICE_OUT_ALL_A2DP) {
-        *frames = frames_written_hw;
-        *timestamp = out->timestamp;
-    } else if (!adev->audio_patching) {
+    if (!adev->audio_patching) {
         ret = mixer_get_presentation_position(audio_mixer,
                 out->port_index, frames, timestamp);
         if (ret == 0) {
@@ -963,18 +955,6 @@ int subWrite(
 }
 #endif
 
-void a2dp_switch(struct audio_stream_out *stream) {
-    struct aml_stream_out *aml_out = (struct aml_stream_out *) stream;
-
-    if (aml_out->out_device & AUDIO_DEVICE_OUT_ALL_A2DP) {
-        ALOGD("a2dp_switch: output: %p, a2dp_out=%p", aml_out, aml_out->a2dp_out);
-        if (aml_out->a2dp_out == NULL)
-            a2dp_output_enable(stream);
-    } else {
-        a2dp_output_disable(stream);
-    }
-}
-
 int outSubMixingWrite(
             struct audio_stream_out *stream,
             const void *buf,
@@ -1019,12 +999,6 @@ ssize_t mixer_main_buffer_write_sm (struct audio_stream_out *stream, const void 
     if (buffer == NULL) {
         ALOGE ("%s() invalid buffer %p\n", __FUNCTION__, buffer);
         return -1;
-    }
-
-    if (adev->out_device != aml_out->out_device) {
-        ALOGD("%s:%p device:%x,%x", __func__, stream, aml_out->out_device, adev->out_device);
-        aml_out->out_device = adev->out_device;
-        a2dp_switch(stream);
     }
 
     case_cnt = popcount(adev->usecase_masks & 0xfffffffe);
@@ -1243,16 +1217,6 @@ ssize_t mixer_aux_buffer_write_sm(struct audio_stream_out *stream, const void *b
     } else if (bt->active) {
         close_btSCO_device(adev);
         bt->active = false;
-    }
-
-    if (adev->out_device != aml_out->out_device) {
-        ALOGD("%s:%p device:%x,%x", __func__, stream, aml_out->out_device, adev->out_device);
-        aml_out->out_device = adev->out_device;
-        a2dp_switch(stream);
-        aml_out->stream.common.standby(&aml_out->stream.common);
-        goto exit;
-    } else if (aml_out->out_device == 0) {
-        goto exit;
     }
 
     if (aml_out->standby) {
@@ -1498,9 +1462,6 @@ int out_standby_subMixingPCM(struct audio_stream *stream)
     aml_out->standby = true;
     delete_mixer_input_port(audio_mixer, aml_out->port_index);
 
-    if ((aml_out->out_device & AUDIO_DEVICE_OUT_ALL_A2DP) && aml_out->a2dp_out)
-        a2dp_out_standby(stream);
-
     if (adev->debug_flag > 1) {
         ALOGI("-%s() ret %zd,%p %"PRIu64"\n", __func__, ret, stream, aml_out->total_write_size);
     }
@@ -1536,8 +1497,6 @@ static int out_pause_subMixingPCM(struct audio_stream_out *stream)
     send_mixer_inport_message(audio_mixer, aml_out->port_index, MSG_PAUSE);
 
     aml_out->pause_status = true;
-    if (aml_out->out_device & AUDIO_DEVICE_OUT_ALL_A2DP)
-        a2dp_out_standby(&stream->common);
     ALOGI("-%s()", __func__);
     return 0;
 }

@@ -30,7 +30,7 @@ LOCAL_MULTILIB := both
 include $(BUILD_PREBUILT)
 
 #voice record of SEI BT remote control
-BOARD_ENABLE_HBG := true
+BOARD_ENABLE_HBG := false
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libhbgdecode
@@ -52,7 +52,7 @@ include $(BUILD_PREBUILT)
 # required type is 'primary'. Other possibilites are 'a2dp', 'usb', etc.
 	include $(CLEAR_VARS)
 
-    LOCAL_MODULE := audio.primary.$(TARGET_PRODUCT)
+    LOCAL_MODULE := audio.primary.$(TARGET_BOOTLOADER_BOARD_NAME)
     ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 26 && echo OK),OK)
         LOCAL_PROPRIETARY_MODULE := true
     endif
@@ -67,7 +67,6 @@ include $(BUILD_PREBUILT)
         alsa_manager.c \
         audio_hw_ms12.c \
         audio_hw_dtv.c \
-        audio_a2dp_hw.c \
         aml_audio_stream.c \
         alsa_config_parameters.c \
         spdif_encoder_api.c \

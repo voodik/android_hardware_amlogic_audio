@@ -27,5 +27,4 @@ char*  get_hdmi_arc_cap(unsigned *ad, int maxsize, const char *keys);
 char *strdup_hdmi_arc_cap_default(const char *keys, audio_format_t format);
 
 bool fake_receiver;
-char *strdup_a2dp_cap_default(const char *keys, audio_format_t format);
 #endif
