@@ -83,10 +83,10 @@ include $(BUILD_PREBUILT)
         audio_port.c \
         sub_mixing_factory.c \
         audio_data_process.c \
-        ../../../../frameworks/av/media/libaudioprocessing/AudioResampler.cpp.arm \
-        ../../../../frameworks/av/media/libaudioprocessing/AudioResamplerCubic.cpp.arm \
-        ../../../../frameworks/av/media/libaudioprocessing/AudioResamplerSinc.cpp.arm \
-        ../../../../frameworks/av/media/libaudioprocessing/AudioResamplerDyn.cpp.arm \
+        ../../../../frameworks/av/media/libaudioprocessing/AudioResampler.cpp \
+        ../../../../frameworks/av/media/libaudioprocessing/AudioResamplerCubic.cpp \
+        ../../../../frameworks/av/media/libaudioprocessing/AudioResamplerSinc.cpp \
+        ../../../../frameworks/av/media/libaudioprocessing/AudioResamplerDyn.cpp \
         aml_resample_wrap.cpp \
         audio_simple_resample_api.c \
         aml_audio_resample_manager.c \
