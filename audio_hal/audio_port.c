@@ -23,6 +23,7 @@
 #include <linux/ioctl.h>
 #include <sound/asound.h>
 #include <tinyalsa/asoundlib.h>
+#include <cutils/properties.h>
 
 #include "audio_port.h"
 #include "aml_ringbuffer.h"
@@ -493,7 +494,7 @@ static ssize_t output_port_start(struct output_port *port)
 
 #if defined(ODROID)
     if (card == 0) {
-        device = aml_getprop_int("media.audio_hal.device");
+        device = property_get_int32("persist.media.audio_hal.device", /*default*/0);
         device = alsa_device_update_pcm_index(device, PLAYBACK);
     }
 #endif
