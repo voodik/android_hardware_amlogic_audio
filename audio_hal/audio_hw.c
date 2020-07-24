@@ -4672,7 +4672,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
     out->stream.get_presentation_position = out_get_presentation_position;
 
-    if (eDolbyMS12Lib == adev->dolby_lib_type) {
+    if (eDolbyMS12Lib == adev->dolby_lib_type_last) {
         // BOX with ms 12 need to use new method
         out->stream.pause = out_pause_new;
         out->stream.resume = out_resume_new;
@@ -4815,6 +4815,14 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
             }
         }
     }
+
+    /*when open dts decoder, the dolby lib is changed, so we need restore it*/
+    if (out->hal_internal_format == AUDIO_FORMAT_DTS) {
+        if (eDolbyMS12Lib == adev->dolby_lib_type_last) {
+            adev->dolby_lib_type = eDolbyMS12Lib;
+        }
+    }
+
     pthread_mutex_lock(&out->lock);
     free(out->audioeffect_tmp_buffer);
     free(out->tmp_buffer_8ch);
@@ -6643,7 +6651,10 @@ int do_output_standby_l(struct audio_stream *stream)
      */
     if (adev->patch_src == SRC_DTV && adev->audio_patch != NULL) {
         int dtv_format = adev->audio_patch->dtv_aformat;
-        if ((IS_DOBLBY_FORMAT(dtv_format) || IS_DTS_FORMAT(dtv_format)) &&
+        ALOGD("dtv_format: %#x", dtv_format);
+        ALOGI("hal format=0x%x internal format=0x%x",aml_out->hal_format, aml_out->hal_internal_format);
+        if (!audio_is_linear_pcm(aml_out->hal_internal_format) &&
+            (IS_DOBLBY_FORMAT(dtv_format) || IS_DTS_FORMAT(dtv_format)) &&
             !aml_out->dual_output_flag && (AUDIO_FORMAT_PCM_16_BIT != get_output_format(out)))
             aml_tinymix_set_spdif_format(AUDIO_FORMAT_PCM_16_BIT, aml_out);
     }
@@ -6830,9 +6841,7 @@ audio_format_t get_output_format (struct audio_stream_out *stream)
     struct dolby_ms12_desc *ms12 = & (adev->ms12);
 
     if (eDolbyMS12Lib == adev->dolby_lib_type) {
-        if (ms12->dolby_ms12_enable) {
             output_format = adev->sink_format;
-        }
     } else if (eDolbyDcvLib == adev->dolby_lib_type) {
         if (adev->hdmi_format > 0) {
             output_format = adev->sink_format;
@@ -7614,6 +7623,13 @@ ssize_t hw_write (struct audio_stream_out *stream
         }
     }
     if (aml_out->pcm) {
+#ifdef ADD_AUDIO_DELAY_INTERFACE
+        ret = aml_audio_delay_process(AML_DELAY_OUTPORT_ALL, (void *) tmp_buffer, bytes, output_format);
+        if (ret < 0) {
+            //ALOGW("aml_audio_delay_process skip, ret:%#x", ret);
+        }
+#endif
+
         if (adjust_ms) {
             int adjust_bytes = 0;
             memset((void*)buffer, 0, bytes);
@@ -8097,14 +8113,16 @@ void config_output(struct audio_stream_out *stream)
             //STB case
             if (!adev->is_TV) {
                 set_stream_dual_output(stream, false);
+                adev->dtslib_bypass_enable = 1;
             } else {
                 set_stream_dual_output(stream, true);
+                adev->dtslib_bypass_enable = 0;
             }
-            adev->dtslib_bypass_enable = 0;
             adev->optical_format = AUDIO_FORMAT_AC3;
             break;
         case AUTO:
-            if (adev->active_outport == OUTPORT_HDMI_ARC) {
+            if (((!adev->is_TV) && (adev->active_outport == OUTPORT_HDMI)) ||
+                (adev->is_TV && (adev->active_outport == OUTPORT_HDMI_ARC))) {
                 if (adev->hdmi_descs.dtshd_fmt.is_support) {
                     adev->dtslib_bypass_enable = 1;
                     dts_dec->digital_raw = 2;
@@ -8576,7 +8594,7 @@ ssize_t mixer_main_buffer_write (struct audio_stream_out *stream, const void *bu
         config_output (stream);
     }
 
-    if ((eDolbyMS12Lib == adev->dolby_lib_type) && !is_bypass_dolbyms12(stream)) {
+    if ((eDolbyMS12Lib == adev->dolby_lib_type) && !is_bypass_dolbyms12(stream) && !is_dts_format(aml_out->hal_internal_format)) {
         // in NETFLIX moive selcet screen, switch between movies, adev->ms12_out will change.
         // so we need to update to latest staus just before use.zzz
         ms12_out = (struct aml_stream_out *)adev->ms12_out;
@@ -10762,6 +10780,8 @@ static int adev_release_audio_patch(struct audio_hw_device *dev,
         if (aml_dev->patch_src == SRC_DTV) {
             ALOGI("patch src == DTV now line %d \n", __LINE__);
             aml_dev->audio_patching = 0;
+            aml_dev->reset_dtv_audio = 1;
+            ALOGI("device->device,reset the dtv audio port\n");
             release_dtv_patch(aml_dev);
         }
 #endif
