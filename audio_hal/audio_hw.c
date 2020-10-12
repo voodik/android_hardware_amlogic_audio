@@ -86,7 +86,7 @@
 
 #include "earc_utils.h"
 
-#define ENABLE_NANO_NEW_PATH 1
+//#define ENABLE_NANO_NEW_PATH 1
 #if ENABLE_NANO_NEW_PATH
 #include "jb_nano.h"
 #endif
@@ -234,6 +234,37 @@ int start_ease_out(struct aml_audio_device *adev) {
 
     return 0;
 }
+
+static inline int dolby_stream_active(struct aml_audio_device *adev)
+{
+    int i = 0;
+    int is_dolby = 0;
+    struct aml_stream_out *out = NULL;
+    for (i = 0 ; i < STREAM_USECASE_MAX; i++) {
+        out = adev->active_outputs[i];
+        if (out && (out->hal_internal_format == AUDIO_FORMAT_AC3 || out->hal_internal_format == AUDIO_FORMAT_E_AC3)) {
+            is_dolby = 1;
+            break;
+        }
+    }
+    return is_dolby;
+}
+
+static inline int hwsync_lpcm_active(struct aml_audio_device *adev)
+{
+    int i = 0;
+    int is_hwsync_lpcm = 0;
+    struct aml_stream_out *out = NULL;
+    for (i = 0 ; i < STREAM_USECASE_MAX; i++) {
+        out = adev->active_outputs[i];
+        if (out && audio_is_linear_pcm(out->hal_internal_format) && (out->flags & AUDIO_OUTPUT_FLAG_HW_AV_SYNC)) {
+            is_hwsync_lpcm = 1;
+            break;
+        }
+    }
+    return is_hwsync_lpcm;
+}
+
 static void select_output_device (struct aml_audio_device *adev);
 static void select_input_device (struct aml_audio_device *adev);
 static void select_devices (struct aml_audio_device *adev);
@@ -10348,7 +10379,7 @@ static struct audio_patch_set *register_audio_patch(struct audio_hw_device *dev,
 bool bypass_primary_patch(const struct audio_port_config *sources)
 {
     if ((sources->ext.device.type == AUDIO_DEVICE_IN_WIRED_HEADSET) ||
-            ((remoteDeviceOnline()|| nano_is_connected()) &&
+            ((remoteDeviceOnline()) &&
             (sources->ext.device.type == AUDIO_DEVICE_IN_BUILTIN_MIC)))
         return true;
 
