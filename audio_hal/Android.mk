@@ -30,7 +30,7 @@ LOCAL_MULTILIB := both
 include $(BUILD_PREBUILT)
 
 #voice record of SEI BT remote control
-BOARD_ENABLE_HBG := false
+#BOARD_ENABLE_HBG := true
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libhbgdecode
@@ -131,8 +131,7 @@ include $(BUILD_PREBUILT)
     LOCAL_SHARED_LIBRARIES := \
         liblog libcutils libtinyalsa \
         libaudioutils libdl libaudioroute libutils \
-        libdroidaudiospdif libamaudioutils libamlaudiorc libamadec \
-        libnano
+        libdroidaudiospdif libamaudioutils libamlaudiorc libamadec
 
 ifeq ($(BOARD_COMPILE_IN_SYSTEM), true)
     LOCAL_SHARED_LIBRARIES += libam_adp_vendor
