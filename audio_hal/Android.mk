@@ -117,6 +117,8 @@ include $(BUILD_PREBUILT)
         frameworks/native/include \
         vendor/amlogic/common/external/dvb/include/am_adp \
         frameworks/av/include \
+        frameworks/av/media/libaudioclient/include \
+        frameworks/av/media/libaudioprocessing/include \
         $(LOCAL_PATH)/../amlogic_AQ_tools \
         $(LOCAL_PATH)/../amlogic_AQ_tools/ini
 
